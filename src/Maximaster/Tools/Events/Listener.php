@@ -9,6 +9,9 @@ class Listener
     private   $registered = false;
     protected $prefixes   = array();
 
+    const SORT_PARAM = '@eventSort';
+    const LINKED_PARAM = '@eventLink';
+
     /**
      * Инициирует регистрацию всех событий
      */
@@ -100,6 +103,8 @@ class Listener
                 continue;
             }
 
+            $moduleId = strtolower($moduleId);
+
             $className = $ns . str_replace('/', '\\', $relativeClass);
             $class = new \ReflectionClass($className);
 
@@ -109,33 +114,24 @@ class Listener
 
                 if ( $method->class == $className ) {
 
-                    $sortValue = 100;
+                    $sortValue = $this->getHandlerSort($method);
+                    $linkedEvents = $this->getLinkedHandlers($method);
 
-                    if (method_exists($className, 'getSort'))
-                    {
-                        $sortValueDeprecated = $className::getSort($method->getName());
-                        if ($sortValueDeprecated > 0)
-                        {
-                            $sortValue = $sortValueDeprecated;
-                        }
-                    }
+                    if (!empty($linkedEvents)) {
 
-                    if ($sortValueDeprecated > 0) {
-                        $sortValue = $sortValueDeprecated;
-                    }
+                        foreach ($linkedEvents as $linkedEvent) {
 
-                    $doc = $method->getDocComment();
-                    if (strlen($doc) > 0)
-                    {
-                        preg_match('/@eventSort\s(\d+)/', $doc, $sortMatches);
-                        if (isset($sortMatches[1]))
-                        {
-                            $sortValue = $sortMatches[1];
+                            $collection[] = array(
+                                'moduleName' => $moduleId,
+                                'eventType' => $linkedEvent,
+                                'callback' => array($class->getName(), $method->name),
+                                'sort' => $sortValue
+                            );
                         }
                     }
 
                     $collection[] = array(
-                        'moduleName' => strtolower($moduleId),
+                        'moduleName' => $moduleId,
                         'eventType' => $eventType,
                         'callback' => array($class->getName(), $method->name),
                         'sort' => $sortValue
@@ -145,6 +141,69 @@ class Listener
         }
 
         return $collection;
+    }
+
+    /**
+     * Парсит из документации список привязанных обработчиков и возвращает их в виде массива
+     *
+     * @param \ReflectionMethod $method
+     * @return array
+     */
+    private function getLinkedHandlers(\ReflectionMethod $method)
+    {
+        $linkedEvents = array();
+        //$regPartClassName = '[a-zA-Z_\x7f-\xff\\\\][a-zA-Z0-9_\x7f-\xff\\\\]*';
+        //$regPartMethodName = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
+        $regexp = '/' . self::LINKED_PARAM . '\s([a-zA-Z_-\d]+)\s/';
+
+        preg_match_all($regexp, $method->getDocComment(), $linkedMatches);
+
+        if (!empty($linkedMatches[1])) {
+
+            foreach ($linkedMatches[1] as $eventName) {
+                $linkedEvents[] = trim($eventName);
+            }
+        }
+
+        return $linkedEvents;
+    }
+
+    /**
+     * Парсит из документации значение сортировки. Также обрабатывает устаревший вариант обработки сортировки
+     *
+     * @param \ReflectionMethod $method
+     * @return int
+     */
+    private function getHandlerSort(\ReflectionMethod $method)
+    {
+        $sortValue = 100;
+        $className = $method->class;
+
+        if (method_exists($className, 'getSort'))
+        {
+            $sortValueDeprecated = $className::getSort($method->getName());
+            if ($sortValueDeprecated > 0)
+            {
+                $sortValue = $sortValueDeprecated;
+            }
+        }
+
+        if ($sortValueDeprecated > 0) {
+            $sortValue = $sortValueDeprecated;
+        }
+
+        $doc = $method->getDocComment();
+        if (strlen($doc) > 0) {
+
+            preg_match('/' . self::SORT_PARAM . '\s(\d+)/', $doc, $sortMatches);
+            if (isset($sortMatches[1]))
+            {
+                $sortValue = $sortMatches[1];
+            }
+
+        }
+
+        return $sortValue;
     }
 
     /**
