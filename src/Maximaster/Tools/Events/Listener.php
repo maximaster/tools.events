@@ -102,12 +102,43 @@ class Listener
 
             $className = $ns . str_replace('/', '\\', $relativeClass);
             $class = new \ReflectionClass($className);
+
             foreach ($class->getMethods() as $method) {
-                if ($method->class == $class->getName()) {
+
+                $className = $class->getName();
+
+                if ( $method->class == $className ) {
+
+                    $sortValue = 100;
+
+                    if (method_exists($className, 'getSort'))
+                    {
+                        $sortValueDeprecated = $className::getSort($method->getName());
+                        if ($sortValueDeprecated > 0)
+                        {
+                            $sortValue = $sortValueDeprecated;
+                        }
+                    }
+
+                    if ($sortValueDeprecated > 0) {
+                        $sortValue = $sortValueDeprecated;
+                    }
+
+                    $doc = $method->getDocComment();
+                    if (strlen($doc) > 0)
+                    {
+                        preg_match('/@eventSort\s(\d+)/', $doc, $sortMatches);
+                        if (isset($sortMatches[1]))
+                        {
+                            $sortValue = $sortMatches[1];
+                        }
+                    }
+
                     $collection[] = array(
                         'moduleName' => strtolower($moduleId),
                         'eventType' => $eventType,
-                        'callback' => array($class->getName(), $method->name)
+                        'callback' => array($class->getName(), $method->name),
+                        'sort' => $sortValue
                     );
                 }
             }

@@ -3,7 +3,6 @@
   "description": "Библиотека осуществляет помощь для автоматической загрузки обработчиков событий при соблюдении определенной структуры",
   "keywords": ["bitrix", "1С Битрикс", "максимастер", "обработчики событий"],
   "license": "MIT",
-  "version": "1.0.0",
   "support": {
     "www": "http://www.maximaster.ru",
     "source": "https://github.com/maximaster/tools.events.git"
