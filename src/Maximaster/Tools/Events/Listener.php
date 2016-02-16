@@ -112,7 +112,7 @@ class Listener
 
                 $className = $class->getName();
 
-                if ( $method->class == $className ) {
+                if ( $method->class == $className && $method->isPublic()) {
 
                     $sortValue = $this->getHandlerSort($method);
                     $linkedEvents = $this->getLinkedHandlers($method);
