@@ -20,7 +20,7 @@ class Listener
         $collection = array();
         foreach ($this->prefixes as $namespace => $directoryList) {
             foreach ($directoryList as $directory) {
-                $collection += $this->collect($namespace, $directory);
+                $collection = array_merge($collection, $this->collect($namespace, $directory));
             }
         }
         foreach ($collection as $handler) {
@@ -179,6 +179,7 @@ class Listener
         $sortValue = 100;
         $className = $method->class;
 
+		$sortValueDeprecated = 0;
         if (method_exists($className, 'getSort'))
         {
             $sortValueDeprecated = $className::getSort($method->getName());
@@ -255,6 +256,27 @@ class Listener
             array_push($this->prefixes[ $prefix ], $base_dir);
         }
     }
+
+	/**
+	 * Добавляет обработку нескольких пространств имён
+	 *
+	 * @param array $namespaces Список сопоставлений пространств имён и директорий в которых они находятся
+	 * 		key		=> string Пространство имён
+	 * 		value	=> array|string Путь к директории или массив путей
+	 * @param string $rootDir Базовая директория для всех переданных путей
+	 */
+	function addNamespaces($namespaces, $rootDir = '')
+	{
+		foreach($namespaces as $prefix => $dirs) {
+			if ( ! is_array($dirs) ) {
+				$dirs = array($dirs);
+			}
+
+			foreach($dirs as $dir) {
+				$this->addNamespace($prefix, $rootDir.$dir);
+			}
+		}
+	}
 
     /**
      * Преобразует пару vendor и module в имя битриксового модуля. Если метод вернул не null значение, значит можно быть
