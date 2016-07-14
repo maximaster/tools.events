@@ -87,6 +87,14 @@ class Listener
                     $module = $nestedClass[ 1 ];
                     $eventType = $nestedClass[ 2 ];
                     break;
+                case 4:
+                    $vendor = $nestedClass[ 0 ];
+                    $module = $nestedClass[ 1 ];
+                    $entityType = $nestedClass[ 2 ];
+                    $eventType = $nestedClass[ 3 ];
+
+                    $eventType = "\\$vendor\\$module\\$entityType::$eventType";
+                    break;
                 default:
                     throw new \LogicException("Некорректно описан класс {$file}");
             }
