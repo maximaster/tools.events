@@ -67,6 +67,11 @@ class Listener
                 continue;
             }
 
+            if (DIRECTORY_SEPARATOR === '\\') {
+                $handlersDirectory = str_replace('/', DIRECTORY_SEPARATOR, $handlersDirectory);
+                $file = str_replace('/', DIRECTORY_SEPARATOR, $file);
+            }
+
             $relativeClass = str_replace(array($handlersDirectory, '.php'), '', $file);
             $nestedClass = explode('/', $relativeClass);
 
