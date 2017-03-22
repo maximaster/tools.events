@@ -73,7 +73,7 @@ class Listener
             }
 
             $relativeClass = str_replace(array($handlersDirectory, '.php'), '', $file);
-            $nestedClass = explode('/', $relativeClass);
+            $nestedClass = explode(DIRECTORY_SEPARATOR, $relativeClass);
 
             $moduleId = $vendor = $module = '';
 
