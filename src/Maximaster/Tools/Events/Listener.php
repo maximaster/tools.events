@@ -2,6 +2,7 @@
 
 namespace Maximaster\Tools\Events;
 
+use Bitrix\Main\EventManager;
 use Bitrix\Main\ModuleManager;
 
 class Listener
@@ -11,6 +12,7 @@ class Listener
 
     const SORT_PARAM = '@eventSort';
     const LINKED_PARAM = '@eventLink';
+    const VERSION_PARAM = '@eventVersion';
 
     /**
      * Инициирует регистрацию всех событий
@@ -20,12 +22,23 @@ class Listener
         $collection = array();
         foreach ($this->prefixes as $namespace => $directoryList) {
             foreach ($directoryList as $directory) {
-                $collection = array_merge($collection, $this->collect($namespace, $directory));
+                $directoryPath = $directory['dir'];
+                $directoryVersion = $directory['version'];
+                $collected = $this->collect($namespace, $directoryPath);
+                foreach ($collected as &$collectionItem) {
+                    if (!$collectionItem['version'] && $directoryVersion) {
+                        $collectionItem['version'] = $directoryVersion;
+                    }
+                }
+                $collection = array_merge($collection, $collected);
             }
         }
         foreach ($collection as $handler) {
             $sort = $handler[ 'sort' ] ? $handler[ 'sort' ] : 100;
-            $this->listen($handler[ 'moduleName' ], $handler[ 'eventType' ], $handler[ 'callback' ], $sort);
+            $version = $handler['version'] ? $handler['version'] : 1;
+            $this->listen(
+                $handler[ 'moduleName' ], $handler[ 'eventType' ], $handler[ 'callback' ], $sort, (int)$version
+            );
         }
 
         $this->registered = true;
@@ -39,9 +52,18 @@ class Listener
      * @param int            $sort
      * @return int
      */
-    private function listen($moduleId, $eventType, $callback, $sort = 100)
+    private function listen($moduleId, $eventType, $callback, $sort = 100, $version = 1)
     {
-        return \AddEventHandler($moduleId, $eventType, $callback, $sort);
+        switch ($version) {
+            case 2:
+                $result = EventManager::getInstance()->addEventHandler($moduleId, $eventType, $callback, false, $sort);
+                break;
+            case 1:
+            default:
+                $result = \AddEventHandler($moduleId, $eventType, $callback, $sort);
+                break;
+        }
+        return $result;
     }
 
     /**
@@ -124,26 +146,29 @@ class Listener
 
                     $sortValue = $this->getHandlerSort($method);
                     $linkedEvents = $this->getLinkedHandlers($method);
+                    $version = $this->getVersion($method);
+
+                    $collectionItem = array(
+                        'moduleName' => $moduleId,
+                        'eventType' => $eventType,
+                        'callback' => array($class->getName(), $method->name),
+                        'sort' => $sortValue,
+                    );
+
+                    if ($version !== null) {
+                        $collectionItem['version'] = $version;
+                    }
+
+                    $collection[] = $collectionItem;
 
                     if (!empty($linkedEvents)) {
 
                         foreach ($linkedEvents as $linkedEvent) {
 
-                            $collection[] = array(
-                                'moduleName' => $moduleId,
-                                'eventType' => $linkedEvent,
-                                'callback' => array($class->getName(), $method->name),
-                                'sort' => $sortValue
-                            );
+                            $collectionItem['eventType'] = $linkedEvent;
+                            $collection[] = $collectionItem;
                         }
                     }
-
-                    $collection[] = array(
-                        'moduleName' => $moduleId,
-                        'eventType' => $eventType,
-                        'callback' => array($class->getName(), $method->name),
-                        'sort' => $sortValue
-                    );
                 }
             }
         }
@@ -177,6 +202,26 @@ class Listener
     }
 
     /**
+     * Вытаскивает номер версии для обработчика события
+     *
+     * @param \ReflectionMethod $method
+     *
+     * @return null|int
+     */
+    private function getVersion(\ReflectionMethod $method)
+    {
+        $versionValue = null;
+        $doc = $method->getDocComment();
+        if (strlen($doc) > 0) {
+            preg_match('/' . self::VERSION_PARAM . '\s(\d+)/', $doc, $versionMatches);
+            if (isset($versionMatches[1])) {
+                $versionValue = (int)$versionMatches[1];
+            }
+        }
+        return $versionValue;
+    }
+
+    /**
      * Парсит из документации значение сортировки. Также обрабатывает устаревший вариант обработки сортировки
      *
      * @param \ReflectionMethod $method
@@ -187,7 +232,7 @@ class Listener
         $sortValue = 100;
         $className = $method->class;
 
-		$sortValueDeprecated = 0;
+        $sortValueDeprecated = 0;
         if (method_exists($className, 'getSort'))
         {
             $sortValueDeprecated = $className::getSort($method->getName());
@@ -240,7 +285,7 @@ class Listener
      * проверяться первой.
      * @return void
      */
-    public function addNamespace($prefix, $base_dir, $prepend = false)
+    public function addNamespace($prefix, $base_dir, $prepend = false, $version = 1)
     {
         if ($this->registered === true) {
             throw new \LogicException('Необходимо зарегистрировать все пространства имен до того, как вызван метод register()');
@@ -257,11 +302,15 @@ class Listener
             $this->prefixes[ $prefix ] = array();
         }
 
+        $collectionItem = [
+            'dir' => $base_dir,
+            'version' => $version
+        ];
         // сохраняем базовую директорию для префикса пространства имён
         if ($prepend) {
-            array_unshift($this->prefixes[ $prefix ], $base_dir);
+            array_unshift($this->prefixes[ $prefix ], $collectionItem);
         } else {
-            array_push($this->prefixes[ $prefix ], $base_dir);
+            array_push($this->prefixes[ $prefix ], $collectionItem);
         }
     }
 

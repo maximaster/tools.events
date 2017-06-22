@@ -122,3 +122,39 @@ public static function OnAfterIblockElementAdd()
     //Здесь код, который будет обрабатывать и обновление, добавление элемента инфоблока
 }
 ```
+
+В связи с появлением d7, появилась новая система навешивания событий. Модуль умеет работать как со старыми событиями, так и с новыми.
+Для регистрации событий разных версий можно использовать один из следующих способов:
+- указание докблока `@eventVersion`
+- указание параметра `$version` при регистрации директории с помощью метода `\Maximaster\Tools\Events\Listener::addNamespace`
+
+Примеры:
+
+```php
+/**
+ * @eventVersion 2
+ * Данный обработчик будет зарегистрирован как новый,
+ */
+public function saveOrder(Bitrix\Main\Event $event)
+{
+}
+```
+
+```php
+$eventListener = new \Maximaster\Tools\Events\Listener();
+
+// Все обработчики событий, находящиеся в директоири BitrixD7 будут зарегистрированы как новые
+$eventListener->addNamespace(
+    '\\Maximaster\\EventHandlers\\BitrixD7',
+    __DIR__ . '/../classes/Maximaster/EventHandlers/BitrixD7',
+    false, 2
+);
+
+// А в директории Bitrix - как старые
+$eventListener->addNamespace(
+    '\\Maximaster\\EventHandlers\\Bitrix',
+    __DIR__ . '/../classes/Maximaster/EventHandlers/Bitrix',
+    false, 1
+);
+
+```
