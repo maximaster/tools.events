@@ -300,7 +300,7 @@ class Listener
         $prefix = trim($prefix, '\\') . '\\';
 
         // нормализуем базовую директорию так, чтобы всегда присутствовал разделитель в конце
-        $base_dir = rtrim($base_dir, DIRECTORY_SEPARATOR) . '/';
+        $base_dir = rtrim($base_dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
 
         // инициализируем массив префиксов пространства имён
         if (isset( $this->prefixes[ $prefix ] ) === false) {
