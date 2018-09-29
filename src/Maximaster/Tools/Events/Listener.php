@@ -159,7 +159,7 @@ class Listener
         $linkedEvents = array();
         //$regPartClassName = '[a-zA-Z_\x7f-\xff\\\\][a-zA-Z0-9_\x7f-\xff\\\\]*';
         //$regPartMethodName = '[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*';
-        $regexp = '/' . self::LINKED_PARAM . '\s([a-zA-Z_-\d]+)\s/';
+        $regexp = '/' . self::LINKED_PARAM . '\s([a-zA-Z_\-\d]+)\s/';
 
         preg_match_all($regexp, $method->getDocComment(), $linkedMatches);
 
